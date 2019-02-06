@@ -7,7 +7,11 @@ struct audio_limiter_params {
     /* (all lengths in samples) */
     /* Length of lookahead */
     int Nl;
-    /* Length of attack ramp */
+    /* Length of attack ramp, must be <= to lookahead. You can specify this
+    separately because it could be possible (not yet) to change the attack (and
+    decay) ramp "in real time". So any attack ramp time from 1 to Nl would be
+    allowed, and Nl would just be used to allocate memory needed for the
+    worst-case lookahead. */
     int Nr;
     /* Length of decay ramp */
     int Nd;
