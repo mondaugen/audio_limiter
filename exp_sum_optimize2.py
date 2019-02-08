@@ -19,6 +19,7 @@ import numpy as np
 import scipy
 import pdb
 from scipy import optimize
+from scipy import signal
 import warnings
 #warnings.filterwarnings('error')
 
@@ -75,11 +76,20 @@ def jac_obj_fun(x,n_p,n_d,max_w):
         + n_p/(1-np.exp((b[0]-b[1])*n_p)))
     return np.array([d_b0,d_b1])
 
+def get_filter_coeffs(b,G):
+    a_=np.exp(b)
+    a=[1,-a_[0]-a_[1],a_[0]*a_[1]]
+    b=[0,G*(a_[0]-a_[1])]
+    return (b,a)
+
 def plot_result(x,n_p,n_d):
     b=x
     n=np.arange(n_d+1)
     y=np.exp(b[0]*n)-np.exp(b[1]*n)
-    y_max=np.max(y)
+    n_max=np.log(b[0]/b[1])/(b[1]-b[0])
+    y_max=np.exp(b[0]*n_max)-np.exp(b[1]*n_max)
+    print("y_max: " + str(y_max))
+    #y_max=np.max(y)
     y_arg_max=np.argmax(y)
     y/=y_max
     print("Filter coeffs: " + str(np.exp(b)))
@@ -88,21 +98,21 @@ def plot_result(x,n_p,n_d):
     print("Location of peak: %d" % (y_arg_max,))
     print("Desired peak: %d" % (n_p,))
     print("n_d: %d" % (n_d,))
-    plt.plot(n,20*np.log10(y))
+    s=np.zeros_like(y)
+    s[0]=1
+    b_,a_=get_filter_coeffs(b,1/y_max)
+    y_f,v_n=signal.lfilter(b_,a_,s,zi=[0,0])
+    print("v_n_: " + str(signal.lfiltic(b_,a_,y_f[::-1],[0,0])))
+    print("v_n: " + str(v_n))
+    plt.plot(n,20*np.log10(y),label='computed')
+    plt.plot(n,20*np.log10(y_f),label='filter')
+    plt.legend()
+
 
 M=2
 n_p=300
 n_d=64000
 max_w=1
-
-#constr=optimize.LinearConstraint(
-#np.array([
-#    [1,0],
-#    [0,1],
-#    [-1,1]
-#]),
-#-1*np.inf*np.ones(3),
-#np.zeros(3))
 
 def constr(x):
     A=np.array([
