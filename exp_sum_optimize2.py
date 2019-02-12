@@ -21,6 +21,7 @@ import pdb
 from scipy import optimize
 from scipy import signal
 import warnings
+import os
 #warnings.filterwarnings('error')
 
 def log_sum_exp(x,b):
@@ -82,6 +83,11 @@ def get_filter_coeffs(b,G):
     b=[0,G*(a_[0]-a_[1])]
     return (b,a)
 
+def find_ir_max(b):
+    n_max=np.log(b[0]/b[1])/(b[1]-b[0])
+    y_max=np.exp(b[0]*n_max)-np.exp(b[1]*n_max)
+    return n_max,y_max
+
 def plot_result(x,n_p,n_d):
     b=x
     n=np.arange(n_d+1)
@@ -92,7 +98,6 @@ def plot_result(x,n_p,n_d):
     #y_max=np.max(y)
     y_arg_max=np.argmax(y)
     y/=y_max
-    print("Filter coeffs: " + str(np.exp(b)))
     print("Value at n_p: %f" % (20*np.log10(y[n_p]),))
     print("Value at n_d: %f" % (20*np.log10(y[n_d]),))
     print("Location of peak: %d" % (y_arg_max,))
@@ -101,6 +106,8 @@ def plot_result(x,n_p,n_d):
     s=np.zeros_like(y)
     s[0]=1
     b_,a_=get_filter_coeffs(b,1/y_max)
+    print("b_: " + str(b_))
+    print("a_: " + str(a_))
     y_f,v_n=signal.lfilter(b_,a_,s,zi=[0,0])
     print("v_n_: " + str(signal.lfiltic(b_,a_,y_f[::-1],[0,0])))
     print("v_n: " + str(v_n))
@@ -108,11 +115,6 @@ def plot_result(x,n_p,n_d):
     plt.plot(n,20*np.log10(y_f),label='filter')
     plt.legend()
 
-
-M=2
-n_p=300
-n_d=64000
-max_w=1
 
 def constr(x):
     A=np.array([
@@ -134,24 +136,46 @@ def jac_constr(x):
     ])
     return -1*A
 
-# Find starting point using grid search
-b,r=grid_search(n_p,n_d,max_w,N_points=10)
-print("starting b "+str(b))
-print("starting cost "+str(r))
-result=optimize.minimize(
-obj_fun,
-b,
-args=(n_p,n_d,max_w),
-jac=jac_obj_fun,
-method='SLSQP',
-constraints=[dict(
-type='ineq',
-fun=constr,
-jac=jac_constr)])
+def find_filter_coeffs(n_p,n_d,max_w=1,N_points=10,plot=False):
+    # Find starting point using grid search
+    b,r=grid_search(n_p,n_d,max_w,N_points=N_points)
+    print("starting b "+str(b))
+    print("starting cost "+str(r))
+    result=optimize.minimize(
+    obj_fun,
+    b,
+    args=(n_p,n_d,max_w),
+    jac=jac_obj_fun,
+    method='SLSQP',
+    constraints=[dict(
+    type='ineq',
+    fun=constr,
+    jac=jac_constr)])
 
-print("Success: %s" % (str(result.success),))
-print(result.x)
-print(result.fun)
-print(result.message)
-plot_result(result.x,n_p,n_d)
-plt.show()
+    print("Success: %s" % (str(result.success),))
+    print(result.x)
+    print(result.fun)
+    print(result.message)
+    if plot:
+        plot_result(result.x,n_p,n_d)
+        plt.show()
+    n_max,y_max=find_ir_max(result.x)
+    b_,a_=get_filter_coeffs(result.x,1/y_max)
+    print('b_: ' + str(b_))
+    print('a_: ' + str(a_))
+    return (b_,a_,int(round(n_max)))
+
+if __name__ == '__main__':
+    try:
+        n_p = int(os.environ['N_P'])
+    except KeyError:
+        n_p=300
+    try:
+        n_d = int(os.environ['N_D'])
+    except KeyError:
+        n_d=64000
+    try:
+        max_w = float(os.environ['MAX_W'])
+    except KeyError:
+        max_w=1
+    find_filter_coeffs(n_p,n_d,max_w,plot=True)
