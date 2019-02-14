@@ -113,6 +113,8 @@ def plot_result(x,n_p,n_d):
     print("v_n: " + str(v_n))
     plt.plot(n,20*np.log10(y),label='computed')
     plt.plot(n,20*np.log10(y_f),label='filter')
+    y_f_2,_=signal.lfilter(b_,a_,y_f,zi=[0,0])
+    plt.plot(n,20*np.log10(y_f_2/np.max(y_f_2)),label='filter2')
     plt.legend()
 
 

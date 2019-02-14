@@ -14,15 +14,19 @@ class filter_w_ir:
     b, # b coefficients
     a, # a coefficients
     m, # number of samples of IR to compute and store
+    ir=None, # in the case you have an IR you already have computed, it can be passed in here
     ):
         self.b = b
         self.a = a
         self.m = m
-        ir = np.zeros((m,))
-        ir[0] = 1
-        # The order of the filter
         self.order=int(np.max([len(self.b),len(self.a)])-1)
-        self.ir,_ = signal.lfilter(self.b,self.a,ir,zi=np.zeros((self.order,)))
+        if ir is None:
+            ir = np.zeros((m,))
+            ir[0] = 1
+            # The order of the filter
+            self.ir,_ = signal.lfilter(self.b,self.a,ir,zi=np.zeros((self.order,)))
+        else:
+            self.ir=ir
         # The maximum value of the IR
         self.ir_max=np.max(self.ir)
         # The index at which it acheives this maximum
@@ -54,9 +58,6 @@ class limiter_ir_tf:
         self.buffer_size=buffer_size
         self.threshold=threshold
         self.ramp_up = self.fwir.ir_argmax
-        # TODO This isn't a correct condition, what really should happen is the
-        # amount of lookahead should be enough to accomodate ramp_up samples
-        assert(self.ramp_up >= self.buffer_size)
         assert(self.fwir.order < self.ramp_up)
         # the length of the lookahead and attenuation buffer
         la_buffer_size = buffer_size + self.ramp_up
@@ -65,7 +66,7 @@ class limiter_ir_tf:
         self.atn_buffer=np.zeros((la_buffer_size,))
         #self.last_x=np.zeros((self.fwir.order,))
 
-    def tick(self,x):
+    def tick(self,x,return_atn=False):
         if len(x) != self.buffer_size:
             raise ValueError('input must equal buffer size')
         # shift in samples 
@@ -86,7 +87,11 @@ class limiter_ir_tf:
             self.la_buffer[self.ramp_up:self.ramp_up+self.buffer_size])>self.threshold)[0]
         # sort peak indices in descending order by their height
         peak_idcs=peak_idcs[np.argsort(np.abs(self.la_buffer[peak_idcs]))[::-1]]
+        n_peaks_proced=0
+        # sanity check
+        n_peaks=0
         for p in peak_idcs:
+            n_peaks+=1
             # The attenuation amount
             #atn_amt = np.abs(self.la_buffer[p])/self.threshold
             # atn_amt will always be in (0,1] because threshold < abs(la_buffer[p])
@@ -101,15 +106,22 @@ class limiter_ir_tf:
                 # we're already attenuating enough so we don't need any more
                 # attenuation
                 continue
+            n_peaks_proced += 1
             # we need to attenuate a bit more
             #atn_amt = atn_amt - (self.atn_buffer[p]+1)
             atn_amt = atn_amt - self.atn_buffer[p]
             atn_buf_seg=self.atn_buffer[p-self.ramp_up:]
             ## using [:] changes the original values
             atn_buf_seg[:]+=self.fwir.ir[:len(atn_buf_seg)]*atn_amt
+        assert(n_peaks==len(peak_idcs))
+        per_peaks_proced=n_peaks_proced/len(peak_idcs) if len(peak_idcs) > 0 else 0
         self.la_buffer[:self.buffer_size] *= 1 - self.atn_buffer[:self.buffer_size]
         if np.max(np.abs(self.la_buffer[:self.buffer_size])) > 1:
             print(peak_idcs)
             pdb.set_trace()
+        if return_atn:
+            return (self.la_buffer[:self.buffer_size],
+                    1 - self.atn_buffer[:self.buffer_size],
+                    n_peaks_proced)
         return self.la_buffer[:self.buffer_size]
 
