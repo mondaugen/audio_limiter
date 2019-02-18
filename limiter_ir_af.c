@@ -92,7 +92,7 @@ struct limiter_ir_af {
 };
 
 static int
-limiter_ir_af_arg_chk(limiter_ir_af_init *i)
+limiter_ir_af_arg_chk(struct limiter_ir_af_init *i)
 {
     if (i->fwir == NULL) { return -1;
     if (i->threshold < 0) { return -2; }
@@ -170,6 +170,94 @@ fb_filter_region(
     ffrb->input_vals += len;
 }
 
+/* Sort descending */
+static int
+fval_where_val_cmp_dec(const void *a_, const void *b_)
+{
+    const struct float_buf_where_val *a = a_, *b = b_;
+    return (b->f > a->f) - (a->f > b->f);
+}
+
+/*
+static void
+fb_filter_region(
+    float *seg,
+    unsigned int len,
+    void *aux)
+*/
+struct sum_ir_into_atn_buf_aux {
+    float *ir;
+    float scale;
+};
+
+static void
+sum_ir_into_atn_buf(
+    float *seg,
+    unsigned int len,
+    void *aux_)
+{
+    struct sum_ir_into_atn_buf_aux *aux = aux_;
+    while (len-- > 0) {
+        *seg++ += *aux->ir++ * aux->scale;
+    }
+}
+
+struct atn_fun_updater_aux { struct limiter_ir_af *lia; };
+
+/* passed as chk argument to float_buf_where_values */
+static int
+la_buf_peak_finder(
+    float f,
+    void *aux_)
+{
+    struct atn_fun_updater_aux *aux = aux_;
+    return fabs(f) > aux->lia->threshold;
+}
+
+/* passed as fun argument to float_buf_where_values */
+static void
+atn_fun_updater(struct float_buf_where_val *vals,
+                unsigned int nvals,
+                void *aux_)
+{
+    struct atn_fun_updater_aux *aux = aux_;
+    qsort(vals,nvals,sizeof(struct float_buf_where_val),fval_where_val_cmp_dec);
+    unsigned int n;
+    for (n = 0; n < nvals; n++) {
+        float atn_amt = 1. - aux->lia->threshold / fabs(vals[n].f),
+              cur_atn = float_buf_lookup(aux->lia->attenuation_buffer,
+                                         vals[n].n);
+        if (cur_atn >= atn_amt) {
+            /* no need to attenuate, we're attenuating enough already */
+            continue;
+        }
+        atn_amt = atn_amt - cur_atn;
+        struct sum_ir_into_atn_buf_aux aux2 = {
+            .ir = lia_ir(aux->lia),
+            .scale = atn_amt
+        };
+        float_buf_process_region(
+            aux->lia->attenuation_buf,
+            vals[n].n - aux->lia->ramp_up,
+            aux->lia->lookahead_buf_size - vals[n].n + aux->lia->ramp_up,
+            sum_ir_into_atn_buf);
+    }
+}
+
+struct scale_out_buf_aux { float *out_buf; };
+
+static void
+scale_out_buf(
+    float *seg,
+    unsigned int len,
+    void *aux_)
+{
+    struct scale_out_buf_aux *aux = aux_;
+    while (len--) {
+        *aux->out_buf++ *= *seg++;
+    }
+} 
+
 /*
 Limits x according to the configuration of lia.
 There will be an output delay of lia->ramp_up.
@@ -206,12 +294,52 @@ limiter_ir_af_tick(struct limiter_ir_af *lia, float *x)
         .past_x = lia->past_x,
         .past_y = lia->past_y,
     };
+    /* Shift over attenuation function */
     float_buf_shift_in(lia->attenuation_buf,lia->zeros,lia_buffer_size(lia));
+    /* Compute the initial attenuation function by extending the IR of the filter */
     float_buf_process_region(
         lia->attenuation_buf,
         lia->ramp_up,
         lia->lookahead_buf_size - lia->ramp_up,
         fb_filter_region,
         &filter_region_aux);
-
+    /*
+    update attenuation function according to peak values in the future
+    float_buf_where_values has this prototype:
+    int
+    float_buf_where_values(
+        float_buf b,
+        int (*chk)(float val, void *aux),
+        void (*fun)(struct float_buf_where_val *v,
+                    unsigned int nvals,
+                    void *aux),
+        void *aux);
+    struct float_buf_where_val { unsigned int n; float f; }
+    */
+    struct atn_fun_updater_aux aux = { .lia = lia };
+    float_buf_where_values(
+        lia->lookahead_buf,
+        la_buf_peak_finder,
+        atn_fun_updater,
+        &aux);
+    /*
+    Multiply the lookahead buffer by the attenuation function.  What we actually
+    do is extract the lookahead buffer to x (that will contain the output).
+    Then we do the multiplication in place in x, that way we don't have to deal
+    with mis-aligned lookahead_buf and attenuation_buf (this would make their
+    multiplication complicated).
+    */
+    float_buf_memcpy(
+        lia->lookahead_buf,
+        0,
+        lia_buffer_size(lia),
+        x);
+    struct scale_out_buf_aux { .out_buf = x };
+    float_buf_process_region(
+        lia->attenuation_buf,
+        0,
+        lia_buffer_size(lia),
+        scale_out_buf,
+        scale_out_buf_aux);
+    return 0;
 } 
