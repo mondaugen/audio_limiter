@@ -2,6 +2,8 @@
 A limiter whose attenuation function's decay is described by an IIR filter.
 */
 
+#include <math.h>
+
 #ifndef MAX
 #define MAX(x,y) (((x)>(y))?(x):(y))
 #endif
@@ -52,11 +54,11 @@ filter_w_ir_arg_chk(struct filter_w_ir_init * i)
 struct filter_w_ir *
 filter_w_ir_new(struct filter_w_ir_init *fwirinit)
 {
-    if (filter_w_ir_arg_chk(fwirinit)) { return NULL; }
+    if (filter_w_ir_arg_chk(fwirinit) != 0) { return NULL; }
     struct filter_w_ir *ret = calloc(1,sizeof(struct filter_w_ir));
     if (!ret) { return NULL; }
     ret->config = *fwirinit;
-    if (filter_w_ir_init_filter(&ret->filter,fwirinit)) {
+    if (filter_w_ir_init_filter(&ret->filter,fwirinit) != 0) {
         free(ret);
         return NULL;
     }
@@ -116,7 +118,11 @@ limiter_ir_af_new(struct limiter_ir_af_init *i)
     struct limiter_ir_af *ret = NULL;
     unsigned int ramp_up = i->fwir.ir_argmax,
                  lookahead_buf_size = i->fwir.block_size + ramp_up; 
-    ret = calloc(1,sizeof(struct limiter_ir_af)+sizeof(float)*i->config.buffer_size);
+    ret = calloc(
+        1,
+        sizeof(struct limiter_ir_af)
+            + sizeof(float)*(i->config.buffer_size
+                + 2*i->config.fwir->filter_order));
     if (!ret) { goto fail; }
     ret->zeros = (float*)(ret+1);
     ret->past_x = ret->zeros + i->config.fwir->filter_order;
@@ -221,12 +227,14 @@ atn_fun_updater(struct float_buf_where_val *vals,
                 void *aux_)
 {
     struct atn_fun_updater_aux *aux = aux_;
+    /* Sort values in descending order of magnitude */
     qsort(vals,nvals,sizeof(struct float_buf_where_val),fval_where_val_cmp_dec);
     unsigned int n;
     for (n = 0; n < nvals; n++) {
         float atn_amt = 1. - aux->lia->threshold / fabs(vals[n].f),
-              cur_atn = float_buf_lookup(aux->lia->attenuation_buffer,
-                                         vals[n].n);
+              cur_atn;
+        /* TODO DEBUG trap here? */
+        float_buf_lookup(aux->lia->attenuation_buffer, vals[n].n, &cur_atn);
         if (cur_atn >= atn_amt) {
             /* no need to attenuate, we're attenuating enough already */
             continue;
@@ -240,7 +248,8 @@ atn_fun_updater(struct float_buf_where_val *vals,
             aux->lia->attenuation_buf,
             vals[n].n - aux->lia->ramp_up,
             aux->lia->lookahead_buf_size - vals[n].n + aux->lia->ramp_up,
-            sum_ir_into_atn_buf);
+            sum_ir_into_atn_buf,
+            &aux2);
     }
 }
 
@@ -272,16 +281,6 @@ limiter_ir_af_tick(struct limiter_ir_af *lia, float *x)
     Shift in the attenuation function by computing the IR values based on the
     last known values of the attenuation function
     */
-    /*
-    it has this prototype 
-    int
-    float_buf_proc_region(
-     struct float_buf *fb,
-     unsigned int start,
-     unsigned int length,
-     void (*proc_fun)(float *seg, unsigned int len, void *aux),
-     void *aux);
-    */
     memset(lia->past_x,0,sizeof(float)*lia_filter_order(lia));
     float_buf_memcpy(
         lia->attenuation_buf,
@@ -305,16 +304,6 @@ limiter_ir_af_tick(struct limiter_ir_af *lia, float *x)
         &filter_region_aux);
     /*
     update attenuation function according to peak values in the future
-    float_buf_where_values has this prototype:
-    int
-    float_buf_where_values(
-        float_buf b,
-        int (*chk)(float val, void *aux),
-        void (*fun)(struct float_buf_where_val *v,
-                    unsigned int nvals,
-                    void *aux),
-        void *aux);
-    struct float_buf_where_val { unsigned int n; float f; }
     */
     struct atn_fun_updater_aux aux = { .lia = lia };
     float_buf_where_values(

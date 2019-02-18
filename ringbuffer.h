@@ -41,4 +41,11 @@ rngbuf_get_slice(
     unsigned int start,
     unsigned int length);
 
+int
+rngbuf_memcpy(
+    struct rngbuf *rb
+    unsigned int start,
+    unsigned int length,
+    char *dest);
+
 #endif /* RINGBUFFER_H */

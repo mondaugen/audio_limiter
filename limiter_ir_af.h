@@ -4,15 +4,15 @@
 /* A filter with a part of its IR stored with it. */
 struct filter_w_ir_init {
     /* The feedforward coefficients */
-    float *b;
+    const float *b;
     /* The number of feedforward coefficients */
     unsigned int len_b;
     /* The feedback coefficients, these are a1,a2,... a0 is assumed to be 1 */
-    float *a;
+    const float *a;
     /* The number of feedback coefficients */
     unsigned int len_a;
     /* The precomputed IR */
-    float *ir;
+    const float *ir;
     /* The number of samples of the IR that have been computed */
     unsigned int len_ir;
 };
@@ -33,7 +33,7 @@ differently depending on the DSP library used.
 */
 int
 filter_w_ir_init_filter(
-    struct filter_w_ir_filter *filter,
+    struct filter_w_ir_filter_imp *filter,
     struct filter_w_ir_init *init);
 
 /*

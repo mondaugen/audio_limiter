@@ -129,3 +129,30 @@ rngbuf_get_slice(
     rb_slice->second_region = (rb_slice->second_region_size > 0) ? rb->data : NULL;
     return 0;
 }
+
+/*
+Copy contents out of ring buffer. Destination should not overlap with the
+ring buffer.
+*/
+int
+rngbuf_memcpy(
+    struct rngbuf *rb
+    unsigned int start,
+    unsigned int length,
+    char *dest)
+{
+    struct rngbuf_slice rbs;
+    int ret;
+    if ((ret = rngbuf_get_slice(
+        rb,
+        &rbs,
+        start,
+        length)) != 0) {
+        return ret;
+    }
+    memcpy(dest,rbs.first_region,rbs.first_region_size);
+    dest += rbs.first_region_size;
+    memcpy(dest,rbs.second_region,rbs.second_region_size);
+    return 0;
+}
+    
