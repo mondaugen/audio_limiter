@@ -15,13 +15,11 @@ float_buf_new(unsigned int size)
     return (struct float_buf *)rngbuf_new(size*sizeof(float));
 }
 
-struct float_buf_where_val { unsigned int n; float f; }; 
-
 int
-float_buf_lookup(float_buf *fb, unsigned int n, float *dest)
+float_buf_lookup(struct float_buf *fb, unsigned int n, float *dest)
 {
     return rngbuf_memcpy(
-        (struct rngbuf *)fb
+        (struct rngbuf *)fb,
         n*sizeof(float),
         sizeof(float),
         (char *)dest);
@@ -35,7 +33,7 @@ float_buf_process_region(
     void (*process)(
         float *seg,
         unsigned int len,
-        void *aux);
+        void *aux),
     void *aux)
 {
     struct rngbuf_slice rbs;
@@ -91,6 +89,8 @@ fun is then called on the array of values.
 int
 float_buf_where_values(
     struct float_buf *fb,
+    unsigned int start,
+    unsigned int length,
     int (*chk)(float val, void *aux),
     void (*fun)(struct float_buf_where_val *v,
                 unsigned int nvals,
@@ -104,12 +104,12 @@ float_buf_where_values(
     rngbuf_get_slice(
         (struct rngbuf *)fb,
         &rbs,
-        0,
-        rngbuf_contents_size((struct rngbuf *)fb))) != 0) {
+        sizeof(float)*start,
+        sizeof(float)*length)) != 0) {
         return ret;
     }
     /* Count the number of times chk returns non-zero */
-    unsigned int nwhere = 0, n, idx_accum = 0;
+    unsigned int nwhere = 0, n, idx_accum = start;
     for (n = 0; n < (rbs.first_region_size/sizeof(float)); n++) {
         nwhere += chk(((float*)rbs.first_region)[n],aux) != 0 ? 1 : 0;
     }
@@ -122,7 +122,7 @@ float_buf_where_values(
     nwhere = 0;
     /* copy in the values */
     for (n = 0; n < (rbs.first_region_size/sizeof(float)); n++) {
-        val = ((float*)rbs.first_region)[n]
+        val = ((float*)rbs.first_region)[n];
         if (chk(val,aux) != 0) {
             wherevals[nwhere].f = val;
             wherevals[nwhere].n = idx_accum;
@@ -131,7 +131,7 @@ float_buf_where_values(
         idx_accum++;
     }
     for (n = 0; n < (rbs.second_region_size/sizeof(float)); n++) {
-        val = ((float*)rbs.second_region)[n]
+        val = ((float*)rbs.second_region)[n];
         if (chk(val,aux) != 0) {
             wherevals[nwhere].f = val;
             wherevals[nwhere].n = idx_accum;
@@ -144,4 +144,12 @@ float_buf_where_values(
     return 0;
 }
 
-#endif /* FLOAT_BUF_H */
+int
+float_buf_push_copy(
+struct float_buf *fb,
+unsigned int n,
+const float *values)
+{
+    return rngbuf_push_copy((struct rngbuf *)fb,
+           (char *)values, n*sizeof(float));
+}

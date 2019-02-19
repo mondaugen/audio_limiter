@@ -3,11 +3,11 @@
 
 struct one_pole_filter_init { float a; };
 
-void
-one_pole_filter_free(struct one_pole_filter *opf);
-
 struct one_pole_filter *
 one_pole_filter_new(struct one_pole_filter_init *config);
+
+void
+one_pole_filter_free(struct one_pole_filter *opf);
 
 int
 one_pole_filter_tick(

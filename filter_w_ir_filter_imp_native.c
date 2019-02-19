@@ -17,7 +17,7 @@ you've passed in more filter coefficients, you might be surprised at the
 behaviour of the filter.
 */
 static int
-filter_w_ir_init_arg_chk(struct filter_w_ir_init *args)
+filter_w_ir_init_arg_chk(const struct filter_w_ir_init *args)
 {
     if (!args) { return -1; }
     if (!args->a) { return -2; }
@@ -27,8 +27,8 @@ filter_w_ir_init_arg_chk(struct filter_w_ir_init *args)
 
 int
 filter_w_ir_init_filter(
-    struct filter_w_ir_filter *filter,
-    struct filter_w_ir_init *init)
+    struct filter_w_ir_filter_imp *filter,
+    const struct filter_w_ir_init *init)
 {
     int ret;
     if ((ret = filter_w_ir_init_arg_chk(init)) != 0) { return ret; }

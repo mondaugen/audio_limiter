@@ -1,5 +1,7 @@
 #include <stdlib.h>
 
+#include "one_pole_filter.h"
+
 /* A single pole, real filter */
 struct one_pole_filter {
     /* The only feedback coefficient. */

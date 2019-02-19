@@ -12,7 +12,10 @@ float_buf_new(unsigned int size);
 struct float_buf_where_val { unsigned int n; float f; }; 
 
 int
-float_buf_lookup(float_buf *fb, unsigned int n, float *dest);
+float_buf_push_copy(struct float_buf *fb, unsigned int n, const float *values);
+
+int
+float_buf_lookup(struct float_buf *fb, unsigned int n, float *dest);
 
 /*
 process a region starting at start that extends for length.
@@ -27,7 +30,7 @@ float_buf_process_region(
     void (*process)(
         float *seg,
         unsigned int len,
-        void *aux);
+        void *aux),
     void *aux);
 
 int
@@ -55,7 +58,9 @@ fun is then called on the array of values.
 */
 int
 float_buf_where_values(
-    float_buf b,
+    struct float_buf *fb,
+    unsigned int start,
+    unsigned int length,
     int (*chk)(float val, void *aux),
     void (*fun)(struct float_buf_where_val *v,
                 unsigned int nvals,

@@ -136,7 +136,7 @@ ring buffer.
 */
 int
 rngbuf_memcpy(
-    struct rngbuf *rb
+    struct rngbuf *rb,
     unsigned int start,
     unsigned int length,
     char *dest)

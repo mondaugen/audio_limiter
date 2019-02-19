@@ -43,7 +43,7 @@ rngbuf_get_slice(
 
 int
 rngbuf_memcpy(
-    struct rngbuf *rb
+    struct rngbuf *rb,
     unsigned int start,
     unsigned int length,
     char *dest);

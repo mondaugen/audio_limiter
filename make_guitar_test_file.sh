@@ -35,4 +35,4 @@ cmdline+="' "
 
 echo "$cmdline"
 bash -c "$cmdline /tmp/guitar.flac"&
-bash -c "$cmdline -f pulse \"HI\""
+#bash -c "$cmdline -f pulse \"HI\""

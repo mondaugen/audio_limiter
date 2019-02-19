@@ -25,6 +25,16 @@ struct filter_w_ir_filter_imp {
     void (*free_filter_aux)(void *);
 };
 
+struct limiter_ir_af_init {
+    /* The implementation of the filter with the IR stored. */
+    struct filter_w_ir *fwir;
+    /* The number of samples that are computed each call to the
+    limiter_ir_af_tick function */
+    unsigned int buffer_size;
+    /* The threshold over which absolute signal values are limited */
+    float threshold;
+};
+
 /*
 Initialize the filtering routines.
 Returns non-zero on error, 0 otherwise.
@@ -34,11 +44,11 @@ differently depending on the DSP library used.
 int
 filter_w_ir_init_filter(
     struct filter_w_ir_filter_imp *filter,
-    struct filter_w_ir_init *init);
+    const struct filter_w_ir_init *init);
 
 /*
 Filter x and put output in y. x and y should not overlap and should have
-length at least block_size.
+length at least buffer_size.
 x_prev is {x[-M],x[-M+1],...,x[0]} where M is order of the filter.
 y_prev is similar.
 This needs to be defined somewhere and is what actually carries out the
@@ -55,3 +65,16 @@ filter_w_ir_filter_imp_tick(
     float *x_prev,
     float *y_prev);
 
+struct limiter_ir_af *
+limiter_ir_af_new(struct limiter_ir_af_init *i);
+
+void
+limiter_ir_af_free(struct limiter_ir_af *lia);
+
+int
+limiter_ir_af_tick(struct limiter_ir_af *lia, float *x);
+
+struct filter_w_ir *
+filter_w_ir_new(const struct filter_w_ir_init *fwirinit);
+
+#endif /* LIMITER_IR_AF_H */
