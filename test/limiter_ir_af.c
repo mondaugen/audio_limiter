@@ -86,6 +86,7 @@ test_2 (void)
         limiter_ir_af_tick(lia,tmp_buf);
         fwrite(tmp_buf,sizeof(float),liai.buffer_size,sndfile_out);
     }
+
 fail:
     if (lia) { limiter_ir_af_free(lia); }
     if (sndfile_in) { fclose(sndfile_in); }
