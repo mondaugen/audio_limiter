@@ -4,3 +4,4 @@ limiter_test
 _fwir_test_header.h
 *.a
 *.o
+__pycache__*
