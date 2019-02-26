@@ -1,0 +1,28 @@
+#! /bin/bash
+
+# you might have to run this script as root
+#
+# alternatively you can add
+# SUBSYSTEMS=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="3748", GROUP="users", MODE="0666"
+# to /etc/udev/rules.d/50-myusb.rules
+# and then log out and log back in
+#
+# check if idVendor and idProduct are correct by doing
+# lsusb -vvv|less and searching for STM (type /STM)
+# you should see lines corresponding to the STLINK device similar to this:
+#
+# idVendor           0x0483 STMicroelectronics
+# idProduct          0x3748 ST-LINK/V2
+#
+# replace the idProduct and idProduct numbers with these (omitting the 0x)
+
+if [ -z ${OPENOCD_INTERFACE} ]
+then
+    OPENOCD_INTERFACE=interface/stlink-v2.cfg
+fi
+if [ -z ${OPENOCD_BOARD} ]
+then
+    OPENOCD_BOARD=board/stm32f429discovery.cfg
+fi
+openocd -f ${OPENOCD_BOARD} \
+    -f ${OPENOCD_INTERFACE}

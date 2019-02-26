@@ -1,0 +1,42 @@
+# Time the number of clock cycles a function takes
+# set a breakpoint at the function, then when stopped, call this method
+
+define armv7_time_function
+    # enable cycle counter, set DWT_CTRL bit 0
+    call (*(0xe0001000)) |= 0x1
+    # reset counter, DWT_CYCCNT
+    call (*(0xe0001004)) = 0
+    # step over function
+    next
+    # print number of cycles it took
+    printf "Number of cycles: %d\n", (*(0xe0001004))
+end
+
+# Time the number of clock cycles it takes to return to a breakpoint (only
+# works with looping or ISRs
+
+define armv7_time_loop
+    # enable cycle counter, set DWT_CTRL bit 0
+    call (*(0xe0001000)) |= 0x1
+    # reset counter, DWT_CYCCNT
+    call (*(0xe0001004)) = 0
+    # continue until breakpoint reached again
+    continue
+    # print number of cycles it took
+    printf "Number of cycles: %d\n", (*(0xe0001004))
+end
+
+# Load project and reset target
+
+define load_reset
+    load
+    monitor reset halt
+end
+
+# Make and load the project, resetting target
+
+define make_load
+    make
+    load_reset()
+end 
+

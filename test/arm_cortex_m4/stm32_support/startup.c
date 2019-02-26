@@ -4,7 +4,6 @@
 
 #include <stdint.h> 
 #include <string.h> 
-#include "version.h" 
 
 
 #define WEAK_ISR __attribute__((weak,isr))
@@ -550,13 +549,4 @@ void Reset_Handler(void)
 }
     
 __attribute__((section(".flash_comment_text")))
-char flash_comment_text[] = 
-                            "856 for ZELLERSASN version "
-                            ZELLERSASN_VERSION
-                            " Copyright (c) 2016-2017 Nicholas Esterer. "
-                            "All rights reserved. "
-                            "Special thanks to Scott Monk "
-                            "and all of Montreal Assembly. "
-                            "\"A ce petit bistrot-la, ils font "
-                            "du petit salé aux lentilles tous les jeudis.\"";
-
+char flash_comment_text[] = "Profiling tests.";
