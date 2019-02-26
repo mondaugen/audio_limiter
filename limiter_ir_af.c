@@ -12,6 +12,13 @@ A limiter whose attenuation function's decay is described by an IIR filter.
 #define MAX(x,y) (((x)>(y))?(x):(y))
 #endif
 
+/* computes y[n] += x[n] * a */
+extern void
+acc_with_scale(float *y, float *x, float a, unsigned int len);
+/* compute y[n] *= 1 - x[n] */
+extern void
+mul_one_minus_vec(float *y, float *x, unsigned int len);
+
 static unsigned int
 argmax(const float *array, unsigned int len)
 {
@@ -223,9 +230,7 @@ sum_ir_into_atn_buf(
     void *aux_)
 {
     struct sum_ir_into_atn_buf_aux *aux = aux_;
-    while (len-- > 0) {
-        *seg++ += *aux->ir++ * aux->scale;
-    }
+    acc_with_scale(seg,aux->ir,aux->scale,len);
 }
 
 struct atn_fun_updater_aux { struct limiter_ir_af *lia; };
@@ -282,9 +287,7 @@ scale_out_buf(
     void *aux_)
 {
     struct scale_out_buf_aux *aux = aux_;
-    while (len--) {
-        *aux->out_buf++ *= 1 - *seg++;
-    }
+    mul_one_minus_vec(aux->out_buf,seg,len);
 } 
 
 /*
