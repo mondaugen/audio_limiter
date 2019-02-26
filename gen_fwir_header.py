@@ -31,6 +31,14 @@ try:
 except KeyError:
     attrib = ""
 
+print("""
+Making attenuation curve with following settings:
+n_p={n_p}
+n_d={n_d}
+buffer_size={buffer_size}
+output_header_file={output_header_file}
+""".format(n_p=n_p,n_d=n_d,buffer_size=buffer_size,output_header_file=output_header_file))
+
 w,b,a,n_max=gac.atn_fun_design_cos_filter(n_p,n_d)
 
 # atn_fun_design_cos_filter returns attenuation curve of length n_p+n_d but we need one of length n_p + buffer_size, so we truncate or append with 0s as needed
