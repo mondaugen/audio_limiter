@@ -6,7 +6,7 @@ from gen_common import complete_array
 
 a=0.99
 
-NVALS=1000
+NVALS=1007
 
 y=np.power(a,np.arange(NVALS))
 

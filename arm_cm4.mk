@@ -37,14 +37,17 @@ ARFLAGS   = rcs
 liblimiter_ir_af.a : limiter_ir_af.o \
                   ringbuffer.o \
                   float_buf_rngbuf.o \
-                  filter_w_ir_filter_imp_native.o \
-                  one_pole_filter.o
+                  filter_w_ir_filter_imp_arm_cm4.o \
+                  limiter_ir_af_routines_arm_cm4.o
 	$(AR) $(ARFLAGS) $@ $^
 
 test/.gen/data_1.h : test/gen_data_1.py
 	PYTHONPATH=test OUTFILE=$@ python3 $<
 
 test/.gen/filter_exp_test_data.h : test/gen_filter_exp_output.py
+	PYTHONPATH=test OUTFILE=$@ python3 $<
+
+test/.gen/scale_one_minus_x_data.h : test/gen_scale_one_minus_x_data.py
 	PYTHONPATH=test OUTFILE=$@ python3 $<
 
 define profile_template =
@@ -71,3 +74,8 @@ $(eval $(call profile_template, \
 test/arm_cortex_m4/bin/profile_exp_filter, \
 test/arm_cortex_m4/profile_exp_filter.c one_pole_filter.c, \
 test/.gen/filter_exp_test_data.h ))
+
+$(eval $(call profile_template, \
+test/arm_cortex_m4/bin/profile_arm_scale_one_minus_x, \
+test/arm_cortex_m4/profile_arm_scale_one_minus_x.c, \
+test/.gen/scale_one_minus_x_data.h ))

@@ -5,12 +5,18 @@ A weird kind of 1 pole filter:
 It doesn't consider input values, only the last delay line value.
 Its coefficients cannot change after filter initialization.
 */
+#include <stdlib.h>
+#include <stdint.h>
 #include "limiter_ir_af.h"
 
-/* This guy's the fastest */
+/*
+This is actually the fastest. The "Duff's device" at the end is really
+overkill, you gain 4 cycles in the worst case over just having a while loop, but
+I've already written it, so why not use it?
+*/
 __attribute__((optimize("-O3")))
-static void
-one_pole_unroll_8(
+void
+one_pole_unroll_4_duff(
 /* output */
 float *y,
 /* the previous delay line value, on exit contains the last delay line value */
@@ -21,8 +27,8 @@ float a1,
 uint32_t len)
 {
     /* temporary variables */
-    float d1 = *pd1, y0, y1, y2, y3, y4, y5, y6, y7;
-    uint32_t blk_cnt = len >> 3U;
+    float d1 = *pd1, y0, y1, y2, y3;
+    uint32_t blk_cnt = len >> 2U;
     while (blk_cnt > 0) {
         y0 = d1;
         d1 = y0 * a1;
@@ -32,34 +38,33 @@ uint32_t len)
         d1 = y2 * a1;
         y3 = d1;
         d1 = y3 * a1;
-        y4 = d1;
-        d1 = y4 * a1;
-        y5 = d1;
-        d1 = y5 * a1;
-        y6 = d1;
-        d1 = y6 * a1;
-        y7 = d1;
-        d1 = y7 * a1;
         *(y) = y0;
         *(y+1) = y1;
         *(y+2) = y2;
         *(y+3) = y3;
-        *(y+4) = y4;
-        *(y+5) = y5;
-        *(y+6) = y6;
-        *(y+7) = y7;
-        y += 8;
+        y += 4;
         blk_cnt--;
     }
-    blk_cnt = len & (8U - 1);
-    while (blk_cnt > 0) {
-        y0 = d1;
-        d1 = y0 * a1;
-        *y = y0;
-        y++;
-        blk_cnt--;
+    blk_cnt = len & (4U - 1);
+    switch (blk_cnt) {
+    case 3:
+            y0 = d1;
+            d1 = y0 * a1;
+            *y = y0;
+            y++;
+    case 2:
+            y0 = d1;
+            d1 = y0 * a1;
+            *y = y0;
+            y++;
+    case 1:
+            y0 = d1;
+            d1 = y0 * a1;
+            *y = y0;
+            y++;
+    case 0:
+            *pd1 = d1;
     }
-    *pd1 = d1;
 }
 
 struct one_pole { float a; };
@@ -94,7 +99,7 @@ filter_w_ir_init_filter(
     struct one_pole *op = calloc(1,sizeof(struct one_pole));
     if (!op) { return -1; }
     op->a = init->a[0];
-    filter->filter_aux = (void*)op
+    filter->filter_aux = (void*)op;
     filter->free_filter_aux = filter_free;
     return 0;
 }
@@ -112,7 +117,6 @@ filter_w_ir_filter_imp_tick(
     float *y_prev)
 {
     struct one_pole *f = f_imp->filter_aux;
-    int ret;
-    one_pole_unroll_8(y,y_prev,f->a,len);
+    one_pole_unroll_4_duff(y,y_prev,f->a,len);
     return 0;
 }

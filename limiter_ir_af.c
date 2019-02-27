@@ -14,7 +14,7 @@ A limiter whose attenuation function's decay is described by an IIR filter.
 
 /* computes y[n] += x[n] * a */
 extern void
-acc_with_scale(float *y, float *x, float a, unsigned int len);
+acc_with_scale(float *y,const float *x, float a, unsigned int len);
 /* compute y[n] *= 1 - x[n] */
 extern void
 mul_one_minus_vec(float *y, float *x, unsigned int len);
@@ -288,6 +288,9 @@ scale_out_buf(
 {
     struct scale_out_buf_aux *aux = aux_;
     mul_one_minus_vec(aux->out_buf,seg,len);
+    while (len--) {
+        *aux->out_buf++ *= 1 - *seg++;
+    }
 } 
 
 /*

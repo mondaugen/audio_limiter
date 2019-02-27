@@ -4,7 +4,7 @@ import numpy as np
 import os
 from gen_common import complete_array
 
-NVALS=1000
+NVALS=1007
 
 x=np.random.standard_normal((NVALS,))
 y=np.random.standard_normal((NVALS,))
