@@ -70,6 +70,7 @@ uint32_t len)
     }
 }
 
+/* This is only about 9% faster..., but it works. */
 __attribute__((optimize("-O3")))
 void
 smart_mod(
@@ -85,7 +86,7 @@ uint32_t len)
              x0_2, x1_2, x2_2,
              x0_3, x1_3, x2_3,
              blk_cnt = len >> 2,
-             len_1 = len - 1;
+             m_1 = m - 1;
     while (blk_cnt-- > 0) {
         x0_0 = *x;
         x0_1 = *(x+1);
@@ -99,18 +100,18 @@ uint32_t len)
         x1_1 = x0_1 + 1;
         x1_2 = x0_2 + 1;
         x1_3 = x0_3 + 1;
-        x1_0 *= (x0_0 < len_1);
-        x1_1 *= (x0_1 < len_1);
-        x1_2 *= (x0_2 < len_1);
-        x1_3 *= (x0_3 < len_1);
+        x1_0 *= (x0_0 < m_1);
+        x1_1 *= (x0_1 < m_1);
+        x1_2 *= (x0_2 < m_1);
+        x1_3 *= (x0_3 < m_1);
         x2_0 = x1_0 + 1;
         x2_1 = x1_1 + 1;
         x2_2 = x1_2 + 1;
         x2_3 = x1_3 + 1;
-        x2_0 *= (x1_0 < len_1);
-        x2_1 *= (x1_1 < len_1);
-        x2_2 *= (x1_2 < len_1);
-        x2_3 *= (x1_3 < len_1);
+        x2_0 *= (x1_0 < m_1);
+        x2_1 *= (x1_1 < m_1);
+        x2_2 *= (x1_2 < m_1);
+        x2_3 *= (x1_3 < m_1);
         *y0 = x0_0;
         *(y0 + 1) = x0_1;
         *(y0 + 2) = x0_2;
@@ -133,9 +134,9 @@ uint32_t len)
         x0_0 = *x;
         x0_0 %= m;
         x1_0 = x0_0 + 1;
-        x1_0 *= (x0_0 < len_1);
+        x1_0 *= (x0_0 < m_1);
         x2_0 = x1_0 + 1;
-        x2_0 *= (x1_0 < len_1);
+        x2_0 *= (x1_0 < m_1);
         *y0 = x0_0;
         *y1 = x1_0;
         *y2 = x2_0;
@@ -146,6 +147,7 @@ uint32_t len)
     }
 }
 
+__attribute__((optimize("-O0")))
 int chk_correct(uint32_t *a, uint32_t *b, uint32_t len)
 {
     int correct = 1;
@@ -155,6 +157,7 @@ int chk_correct(uint32_t *a, uint32_t *b, uint32_t len)
     return correct;
 }
         
+__attribute__((optimize("-O0")))
 int main (void)
 {
     uint32_t ans1_0[NVALS], ans1_1[NVALS], ans1_2[NVALS],
@@ -162,12 +165,12 @@ int main (void)
     while (1) {
         straight_mod(x, ans1_0, ans1_1, ans1_2, M, NVALS);
         smart_mod(x, ans2_0, ans2_1, ans2_2, M, NVALS);
-        chk_correct(y0,ans1_0,NVALS);
-        chk_correct(y1,ans1_1,NVALS);
-        chk_correct(y2,ans1_2,NVALS);
-        chk_correct(y0,ans2_0,NVALS);
-        chk_correct(y1,ans2_1,NVALS);
-        chk_correct(y2,ans2_2,NVALS);
+        assert(chk_correct(y0,ans1_0,NVALS));
+        assert(chk_correct(y1,ans1_1,NVALS));
+        assert(chk_correct(y2,ans1_2,NVALS));
+        assert(chk_correct(y0,ans2_0,NVALS));
+        assert(chk_correct(y1,ans2_1,NVALS));
+        assert(chk_correct(y2,ans2_2,NVALS));
     }
     return 0;
 }
