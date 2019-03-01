@@ -12,6 +12,15 @@ A limiter whose attenuation function's decay is described by an IIR filter.
 #define MAX(x,y) (((x)>(y))?(x):(y))
 #endif
 
+/* computes y[n] += x[n] * a */
+extern void
+acc_with_scale(float *y,const float *x, float a, unsigned int len);
+/* compute y[n] *= 1 - x[n] */
+extern void
+mul_one_minus_vec(float *y, float *x, unsigned int len);
+/* clamp values to upper bound */
+extern void clamp_ab( float *seg, unsigned int len, void *aux);
+
 static unsigned int
 argmax(const float *array, unsigned int len)
 {
@@ -223,9 +232,7 @@ sum_ir_into_atn_buf(
     void *aux_)
 {
     struct sum_ir_into_atn_buf_aux *aux = aux_;
-    while (len-- > 0) {
-        *seg++ += *aux->ir++ * aux->scale;
-    }
+    acc_with_scale(seg,aux->ir,aux->scale,len);
 }
 
 struct atn_fun_updater_aux { struct limiter_ir_af *lia; };
@@ -282,6 +289,7 @@ scale_out_buf(
     void *aux_)
 {
     struct scale_out_buf_aux *aux = aux_;
+    mul_one_minus_vec(aux->out_buf,seg,len);
     while (len--) {
         *aux->out_buf++ *= 1 - *seg++;
     }
@@ -334,6 +342,14 @@ limiter_ir_af_tick(struct limiter_ir_af *lia, float *x)
         la_buf_peak_finder,
         atn_fun_updater,
         &aux);
+    /* Clamp attenuation buffer to 1 maximum (it should bever be negative) */
+    struct clamp_ab_aux aux_clamp_ab = { .clamp_val = 1 };
+    float_buf_process_region(
+        lia->attenuation_buf,
+        0,
+        lia_buffer_size(lia),
+        clamp_ab,
+        &aux_clamp_ab);
     /*
     Multiply the lookahead buffer by the attenuation function.  What we actually
     do is extract the lookahead buffer to x (that will contain the output).

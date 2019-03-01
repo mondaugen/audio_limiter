@@ -35,6 +35,10 @@ struct limiter_ir_af_init {
     float threshold;
 };
 
+struct clamp_ab_aux {
+    float clamp_val;
+};
+
 /*
 Initialize the filtering routines.
 Returns non-zero on error, 0 otherwise.
