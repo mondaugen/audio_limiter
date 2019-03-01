@@ -233,6 +233,8 @@ sum_ir_into_atn_buf(
 {
     struct sum_ir_into_atn_buf_aux *aux = aux_;
     acc_with_scale(seg,aux->ir,aux->scale,len);
+    /* Advance IR pointer so next region multiplied with the rest of the IR */
+    aux->ir += len;
 }
 
 struct atn_fun_updater_aux { struct limiter_ir_af *lia; };
@@ -290,6 +292,9 @@ scale_out_buf(
 {
     struct scale_out_buf_aux *aux = aux_;
     mul_one_minus_vec(aux->out_buf,seg,len);
+    /* Advance out_buf pointer so that we multiply the rest when calling on the
+    next region.  */
+    aux->out_buf += len;
 } 
 
 /*
