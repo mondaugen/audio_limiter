@@ -56,7 +56,7 @@ const float gen_fwir_header_filter_w_ir_init_a[] %s = {
 """ % (attrib,)
 for a_ in a[1:]:
     # TODO: Why must this be -a?
-    hdr_str += "%.18f, " % (a_,)
+    hdr_str += "%.18f, " % (-a_,)
 hdr_str += "};"
 
 hdr_str += """

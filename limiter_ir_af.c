@@ -290,9 +290,6 @@ scale_out_buf(
 {
     struct scale_out_buf_aux *aux = aux_;
     mul_one_minus_vec(aux->out_buf,seg,len);
-    while (len--) {
-        *aux->out_buf++ *= 1 - *seg++;
-    }
 } 
 
 /*
