@@ -18,6 +18,8 @@ acc_with_scale(float *y,const float *x, float a, unsigned int len);
 /* compute y[n] *= 1 - x[n] */
 extern void
 mul_one_minus_vec(float *y, float *x, unsigned int len);
+/* clamp values to upper bound */
+extern void clamp_ab( float *seg, unsigned int len, void *aux);
 
 static unsigned int
 argmax(const float *array, unsigned int len)
@@ -340,6 +342,14 @@ limiter_ir_af_tick(struct limiter_ir_af *lia, float *x)
         la_buf_peak_finder,
         atn_fun_updater,
         &aux);
+    /* Clamp attenuation buffer to 1 maximum (it should bever be negative) */
+    struct clamp_ab_aux aux_clamp_ab = { .clamp_val = 1 };
+    float_buf_process_region(
+        lia->attenuation_buf,
+        0,
+        lia_buffer_size(lia),
+        clamp_ab,
+        &aux_clamp_ab);
     /*
     Multiply the lookahead buffer by the attenuation function.  What we actually
     do is extract the lookahead buffer to x (that will contain the output).

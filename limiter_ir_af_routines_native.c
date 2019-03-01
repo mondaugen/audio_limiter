@@ -1,6 +1,8 @@
-/* Low level limiter routines, optimized for ARM Cortex-M4 */
+/* Low level limiter routines, native implementation */
 #include <stdint.h>
 #include "limiter_ir_af.h"
+
+/* For now this is just the same as ARM because we don't do anything specific to ARM. */
 
 /* computes y[n] += x[n] * a */
 __attribute__((optimize("-O3")))

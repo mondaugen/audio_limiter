@@ -20,6 +20,7 @@ bin/limiter_ir_af : limiter_ir_af.c \
                     ../ringbuffer.c \
                     ../float_buf_rngbuf.c \
                     ../filter_w_ir_filter_imp_native.c \
+                    ../limiter_ir_af_routines_native.c \
                     ../one_pole_filter.c \
                     /tmp/guitar.f32 \
                     _fwir_test_header.h
