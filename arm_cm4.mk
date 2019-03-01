@@ -53,6 +53,9 @@ test/.gen/scale_one_minus_x_data.h : test/gen_scale_one_minus_x_data.py
 test/.gen/profile_adj_mod_test_data.h : test/gen_profile_adj_mod_test_data.py
 	PYTHONPATH=test OUTFILE=$@ python3 $<
 
+test/.gen/dc_notch_filter_test_data.h : test/gen_profile_dc_notch_data.py
+	PYTHONPATH=test OUTFILE=$@ python3 $<
+
 define profile_template =
 $(1) : $(2) $(STM32_SUPPORT_FILES) $(3)
 	$(CC) $$(filter %.c, $$^) -o $$@ -Itest/.gen $(ARM_PROFILE_CFLAGS) $(CMSIS_LDFLAGS)
@@ -87,3 +90,8 @@ $(eval $(call profile_template, \
 test/arm_cortex_m4/bin/profile_adj_mod, \
 test/arm_cortex_m4/profile_adj_mod.c, \
 test/.gen/profile_adj_mod_test_data.h ))
+
+$(eval $(call profile_template, \
+test/arm_cortex_m4/bin/profile_notch_filter, \
+test/arm_cortex_m4/profile_notch_filter.c, \
+test/.gen/dc_notch_filter_test_data.h ))
