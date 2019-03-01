@@ -83,14 +83,18 @@ def do_limiting_iir2(x):
         n_d = int(os.environ['N_D'])
     except KeyError:
         n_d=64000
+    try:
+        DC = float(os.environ['DC'])
+    except KeyError:
+        DC = 0.
     w,b,a,n_max=gac.atn_fun_design_cos_filter(n_p,n_d)
     print('b: ' + str(b))
     print('a: ' + str(a))
     print('n_max: ' + str(n_max))
     buffer_size=256
     fwir=limiter_ir_tf.filter_w_ir(b,a,buffer_size+n_max,ir=w)
-    lim=limiter_ir_tf.limiter_ir_tf(fwir,buffer_size,0.5)
-    return do_limiting_atn(x,lim)
+    lim=limiter_ir_tf.limiter_ir_tf(fwir,buffer_size,0.5,peak_proc_fun='sum')
+    return do_limiting_atn(x+DC,lim)
 
 if __name__ == '__main__':
 
