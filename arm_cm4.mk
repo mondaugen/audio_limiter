@@ -38,7 +38,9 @@ liblimiter_ir_af.a : limiter_ir_af.o \
                   ringbuffer.o \
                   float_buf_rngbuf.o \
                   filter_w_ir_filter_imp_arm_cm4.o \
-                  limiter_ir_af_routines_arm_cm4.o
+                  limiter_ir_af_routines_arm_cm4.o \
+                  dc_notch_filter.o \
+                  dc_notch_filter_arm_cm4.o
 	$(AR) $(ARFLAGS) $@ $^
 
 test/.gen/data_1.h : test/gen_data_1.py
