@@ -25,3 +25,10 @@ bin/limiter_ir_af : limiter_ir_af.c \
                     /tmp/guitar.f32 \
                     _fwir_test_header.h
 	$(CC) $(CFLAGS) $(filter %.c, $^) -o $@
+
+bin/noise_gate : noise_gate.c \
+                 ../noise_gate.c \
+                 ../noise_gate_imp_native.c \
+                ../float_buf_rngbuf.c \
+                 ../ringbuffer.c
+	$(CC) $(CFLAGS) $(filter %.c, $^) -o $@
