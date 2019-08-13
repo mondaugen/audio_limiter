@@ -29,6 +29,9 @@ bin/limiter_ir_af : limiter_ir_af.c \
 bin/noise_gate : noise_gate.c \
                  ../noise_gate.c \
                  ../noise_gate_imp_native.c \
-                ../float_buf_rngbuf.c \
+                 ../float_buf_rngbuf.c \
                  ../ringbuffer.c
+	$(CC) $(CFLAGS) $(filter %.c, $^) -o $@
+
+bin/env_get_param : env_get_param.c
 	$(CC) $(CFLAGS) $(filter %.c, $^) -o $@
