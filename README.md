@@ -15,7 +15,7 @@ efficiently for future values (simply by computing the output of the filter).
 
 ## Noise Gate
 
-There is also a very simple noise gate. This simply makes the signal 0 by multiplying with an attenuation signal. if the power as estimated over a local window is less than some threshold. There is some fading done to smooth the attenuation signal.
+There is also a very simple noise gate. This simply makes the signal 0 by multiplying with an attenuation signal if the power as estimated over a local window is less than some threshold. There is some fading done to smooth the attenuation signal.
 
 ## Using
 
