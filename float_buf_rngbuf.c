@@ -12,7 +12,7 @@ float_buf_free(struct float_buf *fb)
 struct float_buf *
 float_buf_new(unsigned int size)
 {
-    return (struct float_buf *)rngbuf_new(size*sizeof(float));
+    return (struct float_buf *)rngbuf_new(size*sizeof(float),1);
 }
 
 int

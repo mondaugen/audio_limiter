@@ -1,5 +1,7 @@
 /* Low level limiter routines, native implementation */
 #include <stdint.h>
+#include <assert.h>
+#include <math.h>
 #include "limiter_ir_af.h"
 
 /* For now this is just the same as ARM because we don't do anything specific to ARM. */
@@ -21,10 +23,15 @@ unsigned int len)
 /* compute y[n] *= 1 - x[n] */
 __attribute__((optimize("-O3")))
 void
-mul_one_minus_vec(float *y, float *x, unsigned int len)
+mul_one_minus_vec(void *_y, float *x, unsigned int len, unsigned int n_channels)
 {
+    float *y=_y;
     while (len-- > 0) {
-        *y++ *= 1 - *x++;
+        unsigned int n;
+        for (n=0;n<n_channels;n++){
+            *y++ *= 1 - *x;
+        }
+        x++;
     }
 }
 
@@ -37,5 +44,46 @@ float *seg, unsigned int len, void *aux_)
     while (len-- > 0) {
         *seg = *seg > clamp_val ? clamp_val : *seg;
         seg++;
+    }
+}
+
+static inline float
+max_f32(float a, float b)
+{
+    if (a > b) return a;
+    return b;
+}
+
+float vf32_max_abs(float *vf, unsigned int len)
+{
+    switch (len) {
+        case 1:
+            return fabs(*vf);
+        case 2:
+            return max_f32(fabs(vf[0]),fabs(vf[1]));
+        default:
+    }            
+    /* if len is 0, results undefined */
+    float the_max = fabs(*vf);
+    vf++;
+    while (len > 1) {
+        if (fabs(*vf) > the_max) { the_max = fabs(*vf); }
+        len--;
+        vf++;
+    }
+    return the_max;
+}
+
+int vf32_max_abs_a_gt_max_abs_b(float *a, float *b, unsigned int len)
+{
+    switch (len) {
+        case 0:
+            return 0;
+        case 1:
+            return fabs(*a) > fabs(*b);
+        case 2:
+            return max_f32(fabs(a[0]),fabs(a[1])) > max_f32(fabs(b[0]),fabs(b[1]));
+        default:
+            return vf32_max_abs(a,len) > vf32_max_abs(b,len);
     }
 }

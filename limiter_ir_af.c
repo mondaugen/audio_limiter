@@ -7,6 +7,7 @@ A limiter whose attenuation function's decay is described by an IIR filter.
 #include <math.h>
 #include "limiter_ir_af.h"
 #include "float_buf.h"
+#include "ringbuffer.h"
 
 #ifndef MAX
 #define MAX(x,y) (((x)>(y))?(x):(y))
@@ -15,11 +16,15 @@ A limiter whose attenuation function's decay is described by an IIR filter.
 /* computes y[n] += x[n] * a */
 extern void
 acc_with_scale(float *y,const float *x, float a, unsigned int len);
-/* compute y[n] *= 1 - x[n] */
-extern void
-mul_one_minus_vec(float *y, float *x, unsigned int len);
+/* compute y[n+m] *= 1 - x[n] for n in frames and m in channels */
+void
+mul_one_minus_vec(void *y, float *x, unsigned int len, unsigned int n_channels);
 /* clamp values to upper bound */
 extern void clamp_ab( float *seg, unsigned int len, void *aux);
+/* return the maximum absolute value in the array (infinity norm) */
+extern float vf32_max_abs(float *vf, unsigned int len);
+/* return 1 if the max absolute value in array a is greater than the max absolute value in array b (comparison of infinity norms) */
+extern int vf32_max_abs_a_gt_max_abs_b(const float *a, const float *b, unsigned int len);
 
 static unsigned int
 argmax(const float *array, unsigned int len)
@@ -98,7 +103,7 @@ struct limiter_ir_af {
     float *past_x;
     /* Where the filter's past_y values are stored */
     float *past_y;
-    struct float_buf *lookahead_buf;
+    struct rngbuf    *lookahead_buf;
     struct float_buf *attenuation_buf;
 };
 
@@ -111,6 +116,7 @@ limiter_ir_af_arg_chk(const struct limiter_ir_af_init *i)
     if (i->fwir->ir_argmax < 1) { return -4; }
     if ((i->fwir->ir_argmax + i->buffer_size) > i->fwir->config.len_ir) { return -5; }
     if ((i->fwir->config.ir[i->fwir->ir_argmax] != 1.)) { return -6; }
+    if (i->n_channels<1) { return -7; }
     return 0;
 }
 
@@ -124,21 +130,18 @@ void
 limiter_ir_af_free(struct limiter_ir_af *lia)
 {
     if (!lia) { return; }
-    if (lia->lookahead_buf) { float_buf_free(lia->lookahead_buf); }
+    if (lia->lookahead_buf) { rngbuf_free(lia->lookahead_buf); }
     if (lia->attenuation_buf) { float_buf_free(lia->attenuation_buf); }
     free(lia);
 }
 
 static int
-push_inital_zeros_to_buf(struct float_buf *fb, unsigned int n)
+push_inital_zeros_to_buf(struct rngbuf *rb, unsigned int n)
 {
-    float f = 0;
+    unsigned char zero[rngbuf_item_size(rb)*n];
+    memset(zero,0,rngbuf_item_size(rb)*n);
     int ret;
-    while (n-- > 0) {
-        ret = float_buf_push_copy(fb,1,&f);
-        if (ret != 0) { return ret; }
-    }
-    return ret;
+    return rngbuf_push_copy(rb, zero, n);
 }
 
 struct limiter_ir_af *
@@ -157,14 +160,14 @@ limiter_ir_af_new(struct limiter_ir_af_init *i)
     ret->zeros = (float*)(ret+1);
     ret->past_x = ret->zeros + i->buffer_size;
     ret->past_y = ret->past_x + i->fwir->filter_order;
-    ret->lookahead_buf = float_buf_new(lookahead_buf_size);
+    ret->lookahead_buf = rngbuf_new(lookahead_buf_size,sizeof(float)*i->n_channels);
     if (!ret->lookahead_buf) { goto fail; }
     ret->attenuation_buf = float_buf_new(lookahead_buf_size);
     if (!ret->attenuation_buf) { goto fail; }
     if (push_inital_zeros_to_buf(ret->lookahead_buf,lookahead_buf_size) != 0) {
         goto fail;
     }
-    if (push_inital_zeros_to_buf(ret->attenuation_buf,lookahead_buf_size) != 0) {
+    if (push_inital_zeros_to_buf((struct rngbuf*)ret->attenuation_buf,lookahead_buf_size) != 0) {
         goto fail;
     }
     ret->config = *i;
@@ -212,12 +215,20 @@ fb_filter_region(
     ffrb->input_vals += len;
 }
 
+struct atn_fun_updater_aux { struct limiter_ir_af *lia; };
+
 /* Sort descending */
 static int
-fval_where_val_cmp_dec(const void *a_, const void *b_)
+fval_where_val_cmp_dec(const void *a_, const void *b_, void *aux)
 {
-    const struct float_buf_where_val *a = a_, *b = b_;
-    return (b->f > a->f) - (a->f > b->f);
+    struct atn_fun_updater_aux *afu = aux;
+    const struct rngbuf_where_val *a = a_, *b = b_;
+    return vf32_max_abs_a_gt_max_abs_b(b->item,
+                                       a->item,
+                                       afu->lia->config.n_channels)
+            - vf32_max_abs_a_gt_max_abs_b(a->item,
+                                          b->item,
+                                       afu->lia->config.n_channels);
 }
 
 struct sum_ir_into_atn_buf_aux {
@@ -237,30 +248,29 @@ sum_ir_into_atn_buf(
     aux->ir += len;
 }
 
-struct atn_fun_updater_aux { struct limiter_ir_af *lia; };
-
 /* passed as chk argument to float_buf_where_values */
 static int
-la_buf_peak_finder(
-    float f,
-    void *aux_)
+la_buf_peak_finder(struct rngbuf *rb,
+void *item,
+void *aux_)
 {
     struct atn_fun_updater_aux *aux = aux_;
-    return fabs(f) > aux->lia->config.threshold;
+    return vf32_max_abs(item, aux->lia->config.n_channels) > aux->lia->config.threshold;
 }
 
-/* passed as fun argument to float_buf_where_values */
+/* passed as fun argument to rngbuf_where_values */
 static void
-atn_fun_updater(struct float_buf_where_val *vals,
+atn_fun_updater(struct rngbuf *rb,
+                struct rngbuf_where_val *vals,
                 unsigned int nvals,
                 void *aux_)
 {
     struct atn_fun_updater_aux *aux = aux_;
     /* Sort values in descending order of magnitude */
-    qsort(vals,nvals,sizeof(struct float_buf_where_val),fval_where_val_cmp_dec);
+    qsort_r(vals,nvals,sizeof(struct rngbuf_where_val),fval_where_val_cmp_dec,aux);
     unsigned int n;
     for (n = 0; n < nvals; n++) {
-        float atn_amt = 1. - aux->lia->config.threshold / fabs(vals[n].f),
+        float atn_amt = 1. - aux->lia->config.threshold / vf32_max_abs(vals[n].item,aux->lia->config.n_channels),
               cur_atn;
         /* TODO DEBUG trap here? */
         float_buf_lookup(aux->lia->attenuation_buf, vals[n].n, &cur_atn);
@@ -282,7 +292,7 @@ atn_fun_updater(struct float_buf_where_val *vals,
     }
 }
 
-struct scale_out_buf_aux { float *out_buf; };
+struct scale_out_buf_aux { void *out_buf; unsigned int n_channels; };
 
 static void
 scale_out_buf(
@@ -291,10 +301,10 @@ scale_out_buf(
     void *aux_)
 {
     struct scale_out_buf_aux *aux = aux_;
-    mul_one_minus_vec(aux->out_buf,seg,len);
+    mul_one_minus_vec(aux->out_buf,seg,len,aux->n_channels);
     /* Advance out_buf pointer so that we multiply the rest when calling on the
     next region.  */
-    aux->out_buf += len;
+    aux->out_buf += len*aux->n_channels;
 } 
 
 /*
@@ -306,7 +316,7 @@ int
 limiter_ir_af_tick(struct limiter_ir_af *lia, float *x)
 {
     /* Shift in samples from x */
-    float_buf_shift_in(lia->lookahead_buf,x,lia_buffer_size(lia));
+    rngbuf_shift_in(lia->lookahead_buf,x,lia_buffer_size(lia));
     /*
     Shift in the attenuation function by computing the IR values based on the
     last known values of the attenuation function
@@ -337,7 +347,7 @@ limiter_ir_af_tick(struct limiter_ir_af *lia, float *x)
     update attenuation function according to peak values in the future
     */
     struct atn_fun_updater_aux aux = { .lia = lia };
-    float_buf_where_values(
+    rngbuf_where_values(
         lia->lookahead_buf,
         lia->ramp_up,
         lia_buffer_size(lia),
@@ -359,12 +369,12 @@ limiter_ir_af_tick(struct limiter_ir_af *lia, float *x)
     with mis-aligned lookahead_buf and attenuation_buf (this would make their
     multiplication complicated).
     */
-    float_buf_memcpy(
+    rngbuf_memcpy(
         lia->lookahead_buf,
         0,
         lia_buffer_size(lia),
         x);
-    struct scale_out_buf_aux sob_aux = { .out_buf = x };
+    struct scale_out_buf_aux sob_aux = { .out_buf = x, .n_channels = lia->config.n_channels };
     float_buf_process_region(
         lia->attenuation_buf,
         0,

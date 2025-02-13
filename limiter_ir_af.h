@@ -33,6 +33,8 @@ struct limiter_ir_af_init {
     unsigned int buffer_size;
     /* The threshold over which absolute signal values are limited */
     float threshold;
+    /* The number of channels per frame in the lookahead_buf */
+    unsigned int n_channels;
 };
 
 struct clamp_ab_aux {
@@ -80,5 +82,8 @@ limiter_ir_af_tick(struct limiter_ir_af *lia, float *x);
 
 struct filter_w_ir *
 filter_w_ir_new(const struct filter_w_ir_init *fwirinit);
+
+void
+filter_w_ir_free(struct filter_w_ir *f);
 
 #endif /* LIMITER_IR_AF_H */
