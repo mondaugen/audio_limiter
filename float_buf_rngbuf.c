@@ -45,6 +45,9 @@ float_buf_process_region(
         length*sizeof(float))) != 0) {
         return ret;
     }
+    // FIXME!: there is no guarantee that rbs.first_region_size is multiple of
+    // sizeof(float)!
+    // Solution: use a ringbuffer with items of size sizeof(float)
     process((float*)rbs.first_region,rbs.first_region_size/sizeof(float),aux);
     process((float*)rbs.second_region,rbs.second_region_size/sizeof(float),aux);
     return 0;

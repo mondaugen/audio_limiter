@@ -167,7 +167,9 @@ limiter_ir_af_new(struct limiter_ir_af_init *i)
     if (push_inital_zeros_to_buf(ret->lookahead_buf,lookahead_buf_size) != 0) {
         goto fail;
     }
-    if (push_inital_zeros_to_buf((struct rngbuf*)ret->attenuation_buf,lookahead_buf_size) != 0) {
+    // FIXME!: When attenuation_buf is changed to use item_size of 4, remove the
+    // *sizeof(float)
+    if (push_inital_zeros_to_buf((struct rngbuf*)ret->attenuation_buf,lookahead_buf_size*sizeof(float)) != 0) {
         goto fail;
     }
     ret->config = *i;
