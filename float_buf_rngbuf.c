@@ -12,7 +12,7 @@ float_buf_free(struct float_buf *fb)
 struct float_buf *
 float_buf_new(unsigned int size)
 {
-    return (struct float_buf *)rngbuf_new(size*sizeof(float),1);
+    return (struct float_buf *)rngbuf_new(size,sizeof(float));
 }
 
 int
@@ -20,8 +20,8 @@ float_buf_lookup(struct float_buf *fb, unsigned int n, float *dest)
 {
     return rngbuf_memcpy(
         (struct rngbuf *)fb,
-        n*sizeof(float),
-        sizeof(float),
+        n,
+        1,
         (char *)dest);
 }
 
@@ -41,15 +41,12 @@ float_buf_process_region(
     if ((ret = rngbuf_get_slice(
         (struct rngbuf *)fb,
         &rbs,
-        start*sizeof(float),
-        length*sizeof(float))) != 0) {
+        start,
+        length)) != 0) {
         return ret;
     }
-    // FIXME!: there is no guarantee that rbs.first_region_size is multiple of
-    // sizeof(float)!
-    // Solution: use a ringbuffer with items of size sizeof(float)
-    process((float*)rbs.first_region,rbs.first_region_size/sizeof(float),aux);
-    process((float*)rbs.second_region,rbs.second_region_size/sizeof(float),aux);
+    process((float*)rbs.first_region,rbs.first_region_size,aux);
+    process((float*)rbs.second_region,rbs.second_region_size,aux);
     return 0;
 }
 
@@ -62,7 +59,7 @@ float_buf_shift_in(
     return rngbuf_shift_in(
     (struct rngbuf *)fb,
     (char *)values,
-    nvalues*sizeof(float));
+    nvalues);
 }
 
 /*
@@ -78,73 +75,9 @@ float_buf_memcpy(
 {
     return rngbuf_memcpy(
     (struct rngbuf *)fb,
-    start*sizeof(float),
-    length*sizeof(float),
+    start,
+    length,
     (char *)dest);
-}
-
-/*
-Make an array of struct float_buf_where_val.
-The value is included in the array if chk returns non-zero when called on the
-value.
-fun is then called on the array of values.
-*/
-int
-float_buf_where_values(
-    struct float_buf *fb,
-    unsigned int start,
-    unsigned int length,
-    int (*chk)(float val, void *aux),
-    void (*fun)(struct float_buf_where_val *v,
-                unsigned int nvals,
-                void *aux),
-    void *aux)
-{
-    struct rngbuf_slice rbs;
-    int ret;
-    /* get view of all the values */
-    if ((ret = 
-    rngbuf_get_slice(
-        (struct rngbuf *)fb,
-        &rbs,
-        sizeof(float)*start,
-        sizeof(float)*length)) != 0) {
-        return ret;
-    }
-    /* Count the number of times chk returns non-zero */
-    unsigned int nwhere = 0, n, idx_accum = start;
-    for (n = 0; n < (rbs.first_region_size/sizeof(float)); n++) {
-        nwhere += chk(((float*)rbs.first_region)[n],aux) != 0 ? 1 : 0;
-    }
-    for (n = 0; n < (rbs.second_region_size/sizeof(float)); n++) {
-        nwhere += chk(((float*)rbs.second_region)[n],aux) != 0 ? 1 : 0;
-    }
-    /* allocate space on stack for passed values */
-    struct float_buf_where_val wherevals[nwhere];
-    float val;
-    nwhere = 0;
-    /* copy in the values */
-    for (n = 0; n < (rbs.first_region_size/sizeof(float)); n++) {
-        val = ((float*)rbs.first_region)[n];
-        if (chk(val,aux) != 0) {
-            wherevals[nwhere].f = val;
-            wherevals[nwhere].n = idx_accum;
-            nwhere++;
-        }
-        idx_accum++;
-    }
-    for (n = 0; n < (rbs.second_region_size/sizeof(float)); n++) {
-        val = ((float*)rbs.second_region)[n];
-        if (chk(val,aux) != 0) {
-            wherevals[nwhere].f = val;
-            wherevals[nwhere].n = idx_accum;
-            nwhere++;
-        }
-        idx_accum++;
-    }
-    /* pass to the function */
-    fun(wherevals,nwhere,aux);
-    return 0;
 }
 
 int
@@ -154,5 +87,5 @@ unsigned int n,
 const float *values)
 {
     return rngbuf_push_copy((struct rngbuf *)fb,
-           (char *)values, n*sizeof(float));
+           (char *)values, n);
 }

@@ -167,9 +167,7 @@ limiter_ir_af_new(struct limiter_ir_af_init *i)
     if (push_inital_zeros_to_buf(ret->lookahead_buf,lookahead_buf_size) != 0) {
         goto fail;
     }
-    // FIXME!: When attenuation_buf is changed to use item_size of 4, remove the
-    // *sizeof(float)
-    if (push_inital_zeros_to_buf((struct rngbuf*)ret->attenuation_buf,lookahead_buf_size*sizeof(float)) != 0) {
+    if (push_inital_zeros_to_buf((struct rngbuf*)ret->attenuation_buf,lookahead_buf_size) != 0) {
         goto fail;
     }
     ret->config = *i;
@@ -250,7 +248,7 @@ sum_ir_into_atn_buf(
     aux->ir += len;
 }
 
-/* passed as chk argument to float_buf_where_values */
+/* passed as chk argument to rngbuf_where_values */
 static int
 la_buf_peak_finder(struct rngbuf *rb,
 void *item,

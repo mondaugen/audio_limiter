@@ -50,21 +50,4 @@ float_buf_memcpy(
     unsigned int length,
     float *dest);
 
-/*
-Make an array of struct float_buf_where_val.
-The value is included in the array if chk returns non-zero when called on the
-value.
-fun is then called on the array of values.
-*/
-int
-float_buf_where_values(
-    struct float_buf *fb,
-    unsigned int start,
-    unsigned int length,
-    int (*chk)(float val, void *aux),
-    void (*fun)(struct float_buf_where_val *v,
-                unsigned int nvals,
-                void *aux),
-    void *aux);
-
 #endif /* FLOAT_BUF_H */
