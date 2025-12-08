@@ -2,6 +2,9 @@
 A limiter whose attenuation function's decay is described by an IIR filter.
 */
 
+/* in order to enable the definition of qsort_r */
+#define _GNU_SOURCE
+
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
