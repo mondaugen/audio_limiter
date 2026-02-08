@@ -1,5 +1,5 @@
-#ifndef COMMON_H
-#define COMMON_H 
+#ifndef AUDIO_LIMITER_COMMON_H
+#define AUDIO_LIMITER_COMMON_H 
 
 #define id(x) x
 
@@ -17,4 +17,4 @@
     }\
     }
 
-#endif /* COMMON_H */
+#endif /* AUDIO_LIMITER_COMMON_H */
